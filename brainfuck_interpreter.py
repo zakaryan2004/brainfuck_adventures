@@ -1,13 +1,30 @@
 import readchar
-from collections import deque
+import re
 
 CHARACTERS = ['>', '<', '+', '-', '.', ',', '[', ']']
+
+def preprocess(string):
+    pattern = re.compile("[><+-.,\[\]]+", re.MULTILINE)
+    matches = pattern.findall(string)
+    preprocessed = ''.join(matches)
+
+    jump_map = {}
+    jump_stack = []
+
+    for i in range(len(preprocessed)):
+        if preprocessed[i] == '[':
+            jump_stack.append(i)
+        elif preprocessed[i] == ']':
+            open_i = jump_stack.pop()
+            jump_map[open_i] = i
+            jump_map[i] = open_i
+
+    return preprocessed, jump_map
+
 
 def interpret_brainfuck(string):
     tape = bytearray(30000)
     pointer = 0
-    must_skip_count = 0
-    jump_stack = deque()
 
     def incp():
         nonlocal pointer
@@ -26,20 +43,9 @@ def interpret_brainfuck(string):
         tape[pointer] = (tape[pointer] - 1) % 256
 
     i = 0
-    while i < len(string):
-        ch = string[i]
-        if ch not in CHARACTERS:
-            i += 1
-            continue
-
-        if must_skip_count > 0:
-            if ch == '[':
-                must_skip_count += 1
-            elif ch == ']':
-                must_skip_count -= 1
-
-            i += 1
-            continue
+    program, jump_map = preprocess(string)
+    while i < len(program):
+        ch = program[i]
         
         if ch == '>':
             incp()
@@ -55,18 +61,9 @@ def interpret_brainfuck(string):
             tape[pointer] = ord(readchar.readchar())
         elif ch == '[':
             if tape[pointer] == 0:
-                must_skip_count += 1
-
-                i += 1
-                continue
-            jump_stack.appendleft(i)
+                i = jump_map[i]
         elif ch == ']':
             if tape[pointer] != 0:
-                i = jump_stack.popleft()
-                continue
-            else:
-                jump_stack.popleft()
+                i = jump_map[i]
 
         i += 1
-
-
