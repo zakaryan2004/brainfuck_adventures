@@ -130,5 +130,27 @@ GAME_OF_LIFE = """
 """
 
 
+# from brainfuck_interpreter import interpret_brainfuck
+# interpret_brainfuck(GAME_OF_LIFE)
+
+
+# program = """
+# +++++ +++++
+# +++++ +++++
+# +++++ +++++
+# +++++ +++++
+# +++++ +++++
+# +++++ +++++
+# +++++ +++++
+# ++.
+# """
+
+program = """
+>++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++.
+---.
++++++++..
++++.
+"""
+
 from brainfuck_interpreter import interpret_brainfuck
-interpret_brainfuck(GAME_OF_LIFE)
+interpret_brainfuck(program)
