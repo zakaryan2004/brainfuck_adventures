@@ -18,12 +18,24 @@ typedef enum {
     INPUT   = ',',
     JUMP_FWD= '[',
     JUMP_BCK= ']'
-} CHARACTERS;
+} CHARACTER;
 
 typedef struct Node {
     int position;
     struct Node *next;
 } Node;
+
+typedef enum {
+    OP_NONE,
+    OP_PTR,
+    OP_VAL
+} OpType;
+
+OpType get_op_type(char ch) {
+    if (ch == INC_PTR || ch == DEC_PTR) return OP_PTR;
+    if (ch == INC_VAL || ch == DEC_VAL) return OP_VAL;
+    return OP_NONE;
+}
 
 
 void preprocess(FILE *fi_ptr, jump_map_entry *jump_map, int *jump_map_size) {
@@ -70,11 +82,32 @@ int find_jump(int position, jump_map_entry *jumpmap, int jump_map_size) {
     return -1;
 }
 
+void generate_operation(FILE *fo_ptr, OpType *op, int *inc) {
+    if (*inc == 0 || *op == OP_NONE) {
+        *op = OP_NONE;
+        *inc = 0;
+        return;
+    }
+
+    if (*op == OP_PTR) {
+        char sign = *inc > 0 ? '+' : '-';
+        fprintf(fo_ptr, "    pointer = (pointer %c %d) %% %d;\n", sign, abs(*inc), TAPELEN);
+    }
+    else if (*op == OP_VAL) {
+        fprintf(fo_ptr, "    tape[pointer] += %d;\n", *inc);
+    }
+    *op = OP_NONE;
+    *inc = 0;
+}
+
 void compile_brainfuck(FILE *fi_ptr, FILE *fo_ptr) {
     int i = 0;
     char ch;
     jump_map_entry jump_map[TAPELEN];
     int jump_map_size = 0;
+
+    OpType current_op;
+    int current_inc = 0;
 
     preprocess(fi_ptr, jump_map, &jump_map_size);
     fseek(fi_ptr, 0, SEEK_SET);
@@ -91,21 +124,31 @@ void compile_brainfuck(FILE *fi_ptr, FILE *fo_ptr) {
             break;
         }
 
+        OpType new_op = get_op_type(ch);
+
+        if (new_op != current_op) {
+            generate_operation(fo_ptr, &current_op, &current_inc);
+        }
+
         switch (ch) {
             case INC_PTR: {
-                fprintf(fo_ptr, "    pointer = (pointer + 1) %% %d;\n", TAPELEN);
+                current_op = OP_PTR;
+                current_inc += 1;
                 break;
             }
             case DEC_PTR: {
-                fprintf(fo_ptr, "    pointer = (pointer - 1) %% %d;\n", TAPELEN);
+                current_op = OP_PTR;
+                current_inc -= 1;
                 break;
             }
             case INC_VAL: {
-                fprintf(fo_ptr, "    tape[pointer]++;\n");
+                current_op = OP_VAL;
+                current_inc += 1;
                 break;
             }
             case DEC_VAL: {
-                fprintf(fo_ptr, "    tape[pointer]--;\n");
+                current_op = OP_VAL;
+                current_inc -= 1;
                 break;
             }
             case OUTPUT: {
