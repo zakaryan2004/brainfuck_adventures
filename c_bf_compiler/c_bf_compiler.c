@@ -2,7 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TAPELEN 30000
+#define TAPELEN 65536
 
 typedef struct {
     int from;
@@ -82,6 +82,7 @@ int find_jump(int position, jump_map_entry *jumpmap, int jump_map_size) {
     return -1;
 }
 
+
 void generate_operation(FILE *fo_ptr, OpType *op, int *inc) {
     if (*inc == 0 || *op == OP_NONE) {
         *op = OP_NONE;
@@ -91,7 +92,7 @@ void generate_operation(FILE *fo_ptr, OpType *op, int *inc) {
 
     if (*op == OP_PTR) {
         char sign = *inc > 0 ? '+' : '-';
-        fprintf(fo_ptr, "    pointer = (pointer %c %d) %% %d;\n", sign, abs(*inc), TAPELEN);
+        fprintf(fo_ptr, "    pointer %c= %d;\n", sign, abs(*inc));
     }
     else if (*op == OP_VAL) {
         fprintf(fo_ptr, "    tape[pointer] += %d;\n", *inc);
@@ -99,6 +100,7 @@ void generate_operation(FILE *fo_ptr, OpType *op, int *inc) {
     *op = OP_NONE;
     *inc = 0;
 }
+
 
 void compile_brainfuck(FILE *fi_ptr, FILE *fo_ptr) {
     int i = 0;
@@ -112,10 +114,10 @@ void compile_brainfuck(FILE *fi_ptr, FILE *fo_ptr) {
     preprocess(fi_ptr, jump_map, &jump_map_size);
     fseek(fi_ptr, 0, SEEK_SET);
 
-    fprintf(fo_ptr, "#include <stdio.h>\n\n");
+    fprintf(fo_ptr, "#include <stdio.h>\n#include <stdint.h>\n\n");
     fprintf(fo_ptr, "int main() {\n");
     fprintf(fo_ptr, "    unsigned char tape[%d] = {0};\n", TAPELEN);
-    fprintf(fo_ptr, "    int pointer = 0;\n\n");
+    fprintf(fo_ptr, "    uint16_t pointer = 0;\n\n");
 
     while (1) {
         ch = fgetc(fi_ptr);
@@ -174,6 +176,7 @@ void compile_brainfuck(FILE *fi_ptr, FILE *fo_ptr) {
 
     fprintf(fo_ptr, "\n    return 0;\n}");
 }
+
 
 int main(int argc, char *argv[]) {
     if (argc < 2) {
