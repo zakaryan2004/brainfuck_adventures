@@ -126,6 +126,15 @@ void compile_brainfuck(FILE *fi_ptr, FILE *fo_ptr) {
             break;
         }
 
+        if (ch != INC_PTR && ch != DEC_PTR &&
+            ch != INC_VAL && ch != DEC_VAL &&
+            ch != OUTPUT && ch != INPUT &&
+            ch != JUMP_FWD && ch != JUMP_BCK
+        ) {
+            i++;
+            continue;
+        }
+
         OpType new_op = get_op_type(ch);
 
         if (new_op != current_op) {
