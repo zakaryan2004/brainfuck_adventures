@@ -2,7 +2,9 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define TAPELEN 500
+// 2^15 = 32768, MUST be a power of 2!
+#define TAPELEN (1 << 15)
+#define MAX_JUMPS TAPELEN
 #define CMD_BUF_SIZE 1024
 
 typedef struct {
@@ -54,11 +56,25 @@ void preprocess(FILE *fi_ptr, jump_map_entry *jump_map, int *jump_map_size) {
 
         if (ch == JUMP_FWD) {
             Node *new_node = (Node *)malloc(sizeof(Node));
+            if (!new_node) {
+                perror("malloc at preprocess");
+                exit(EXIT_FAILURE);
+            }
+
             new_node->position = i;
             new_node->next = stack;
             stack = new_node;
         }
         else if (ch == JUMP_BCK) {
+            if (stack == NULL) {
+                fprintf(stderr, "Error: Unmatched ']' at position %d\n", i);
+                exit(EXIT_FAILURE);
+            }
+            if (j >= MAX_JUMPS) {
+                fprintf(stderr, "Error: Too many loops (max %d)\n", MAX_JUMPS);
+                exit(EXIT_FAILURE);
+            }
+
             Node *temp = stack;
             int open_i = stack->position;
             stack = stack->next;
@@ -93,10 +109,10 @@ void generate_operation(FILE *fo_ptr, OpType *op, int *inc) {
     }
 
     if (*op == OP_PTR) {
-        // TODO: Implement Over/Underflow
         fprintf(fo_ptr, "    # pointer += %%d;\n");
         fprintf(fo_ptr, "    %%tape_idx =l loadl $p\n");
         fprintf(fo_ptr, "    %%tape_idx =l add %%tape_idx, %d\n", *inc * 4);
+        fprintf(fo_ptr, "    %%tape_idx =l and %%tape_idx, %d\n", (TAPELEN - 1) * 4);
         fprintf(fo_ptr, "    storel %%tape_idx, $p\n");
     }
     else if (*op == OP_VAL) {
@@ -105,6 +121,7 @@ void generate_operation(FILE *fo_ptr, OpType *op, int *inc) {
         fprintf(fo_ptr, "    %%tape_pointer =l add %%base, %%tape_idx\n");
         fprintf(fo_ptr, "    %%temp_val =w loadw %%tape_pointer\n");
         fprintf(fo_ptr, "    %%temp_val =w add %%temp_val, %d\n", *inc);
+        fprintf(fo_ptr, "    %%temp_val =w and %%temp_val, 255\n");
         fprintf(fo_ptr, "    storew %%temp_val, %%tape_pointer\n");
     }
     *op = OP_NONE;
